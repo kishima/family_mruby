@@ -24,7 +24,7 @@
 #include "fmruby_virtual_key.h"
 
 #define FMRB_VERSION "0.6.0"
-#define FMRB_RELEASE "2020/02/15"
+#define FMRB_RELEASE "2020/02/12"
 
 #define FMRB_MAIN_TASK_PRIORITY 1
 #define FMRB_UART_TASK_PRIORITY 2
