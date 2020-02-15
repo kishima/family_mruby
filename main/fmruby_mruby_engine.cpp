@@ -82,7 +82,7 @@ void FmrbMrubyEngine::check_backtrace(mrb_state *mrb,mrb_value result_val) {
     mrb_value msg = mrb_iv_get(mrb,exc,mrb_intern_lit(mrb,"mesg"));
     msg = mrb_obj_as_string(mrb, msg);
     if(RSTRING_LEN(msg)>0){
-      FMRB_DEBUG(FMRB_LOG::RAW,">> %s\n", RSTRING_PTR(msg));
+      //FMRB_DEBUG(FMRB_LOG::RAW,">> %s\n", RSTRING_PTR(msg));
       snprintf(m_error_msg,FMRB_DBG_MSG_MAX_LEN-1,RSTRING_PTR(msg));
       const char *head = RSTRING_PTR(msg)+5;
       const char* div = strchr(head,(int)':');
@@ -165,7 +165,7 @@ void uartTask(void *pvParameters)
   while(true){
     while(Serial2.available() > 0){
       uint8_t inChar = Serial2.read();
-      //FMRB_DEBUG(FMRB_LOG::DEBUG,"%02X\n",inChar);
+      FMRB_DEBUG(FMRB_LOG::DEBUG,"%02X\n",inChar);
       if(inChar==0xFF){
         memset(map,0,FMRB_JOYPAD_MAP_LENGTH);
       }else{

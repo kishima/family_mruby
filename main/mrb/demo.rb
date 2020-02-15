@@ -26,7 +26,7 @@ class Demo
       demo3
     end
     @step+=1
-    if @step > 1800
+    if @step > 300
       puts "type:#{@type}"
       Display::clear
       Display::swap

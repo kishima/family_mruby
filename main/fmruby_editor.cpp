@@ -644,10 +644,10 @@ void FmrbEditor::clear_buffer(){
   m_buff_head = NULL;
 }
 
-void FmrbEditor::show_message(const char* msg)
+void FmrbEditor::show_message(const char* msg,int timeout)
 {
   FmrbDialog *dialog = new FmrbDialog(m_vga,m_canvas,m_term,m_canvas_config);
-  dialog->open_message_dialog(msg);
+  dialog->open_message_dialog(msg,timeout);
   delete dialog;
 }
 
@@ -754,11 +754,11 @@ static FMRB_RCODE editor_menu_cb(uint32_t fid,FmrbMenuModule* menu)
       return FMRB_RCODE::OK_DONE;
     case 2:
       editor->load_demo_file(0);
-      editor->show_message("DEMO0 is loaded");
+      editor->show_message("DEMO0 is loaded",1);
       break;
     case 3:
       editor->load_demo_file(1);
-      editor->show_message("DEMO0 is loaded");
+      editor->show_message("DEMO0 is loaded",1);
       break;
     case 4:
       editor->toggle_highlight();

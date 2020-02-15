@@ -96,7 +96,7 @@ public:
   bool m_code_hightlight;
   void toggle_highlight(void);
   void load_demo_file(int);
-  void show_message(const char*);
+  void show_message(const char*,int timeout=0);
 
 private:
   fabgl::VGAController *m_vga;
