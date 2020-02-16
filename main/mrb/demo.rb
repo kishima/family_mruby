@@ -26,7 +26,7 @@ class Demo
       demo3
     end
     @step+=1
-    if @step > 300
+    if @step > 100
       puts "type:#{@type}"
       Display::clear
       Display::swap
@@ -34,7 +34,9 @@ class Demo
       @type+=1 
       @step=0
     end
-    @type=0 if @type > 3
+    return false if @type > 3
+    #@type=0 if @type > 3
+    return true
   end
 
   def demo0
@@ -86,7 +88,7 @@ end
 
 demo = Demo.new
 loop do
-  demo.run
+  break if false == demo.run
   Display::swap
   k = Input::get_key
   if k==Key::K_RETURN

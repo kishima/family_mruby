@@ -75,12 +75,13 @@ public:
   fabgl::Terminal *m_terminal;
 
   OVERLOAD_SPI_ALLOCATOR
-  FmrbVkey read_vkey();
+  FmrbVkey read_vkey(int timeout=0);
   void wait_vkey(FmrbVkey k);
   void wait_vkey(FmrbVkey target,int timeout);
 
   static bool is_visible(FmrbVkey k);
   static char to_ascii(FmrbVkey k);
+  static FmrbVkey ascii_to_vkey(unsigned char c);
 
 };
 

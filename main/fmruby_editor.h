@@ -150,5 +150,7 @@ private:
 
   bool quit(void);
   void open_menu(void);
+
+  FmrbVkey read_demo_vkey(bool reset);
 };
 

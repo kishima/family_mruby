@@ -48,7 +48,7 @@ const char* sample_script2 =
  ***********************************/
 FmrbEditor::FmrbEditor(fabgl::VGAController *vga,fabgl::Canvas* canvas,fabgl::Terminal* terminal,  FmrbFileService *storage):
   FmrbTerminalInput(terminal),
-  m_code_hightlight(false),
+  m_code_hightlight(true),
   m_vga(vga),
   m_canvas(canvas),
   m_term(terminal),
@@ -100,7 +100,10 @@ void FmrbEditor::reset(void)
 
 void FmrbEditor::release_buffer(void)
 {
-  if(m_line_lexer_p) fmrb_free( m_line_lexer_p );
+  if(m_line_lexer_p){
+    fmrb_free( m_line_lexer_p );
+    m_line_lexer_p = nullptr;
+  } 
   clear_buffer();
   m_buff_head = nullptr;
 }
@@ -115,6 +118,8 @@ FMRB_RCODE FmrbEditor::run(char* input_script){
   if(!m_term) return FMRB_RCODE::ERROR;
   if(!m_mruby_engine) return FMRB_RCODE::ERROR;
 
+  auto config = get_system_config();
+
   m_height = m_term->getRows();
   m_width  = m_term->getColumns();
   m_disp_height = m_height - 1;
@@ -125,13 +130,17 @@ FMRB_RCODE FmrbEditor::run(char* input_script){
   m_term->clear();
   move_cursor(m_lineno_shift+1,1);
 
-  if(input_script)
-  {
-    load(input_script);
-    fmrb_free(input_script);
+  if(config->demo_mode == 0){
+    if(input_script)
+    {
+      load(input_script);
+      fmrb_free(input_script);
+    }else{
+      load(null_script);
+      //load_demo_file();
+    }
   }else{
     load(null_script);
-    //load_demo_file();
   }
 
   //Check last execution status
@@ -151,10 +160,22 @@ FMRB_RCODE FmrbEditor::run(char* input_script){
   m_term->enableCursor(true);
 
   update();
+  bool demo_init = true;
 
   //main editor input handling loop
   while(true){
-    FmrbVkey vkey = read_vkey();
+    FmrbVkey vkey;
+    if(config->demo_mode==0){
+      vkey = read_vkey();
+    }else{
+      vTaskDelay(30);
+      //vkey = read_vkey();
+      //if(vkey == FmrbVkey::VK_NONE){
+      //  config->demo_mode=0;
+      //}
+      vkey = read_demo_vkey(demo_init);
+      demo_init = false;
+    }
     //printf("V> %d\n",(int)vkey);
     if(FmrbTerminalInput::is_visible(vkey)){
       int akey = FmrbTerminalInput::to_ascii(vkey);
@@ -755,11 +776,11 @@ static FMRB_RCODE editor_menu_cb(uint32_t fid,FmrbMenuModule* menu)
     case 2:
       editor->load_demo_file(0);
       editor->show_message("DEMO0 is loaded",1);
-      break;
+      return FMRB_RCODE::OK_DONE;
     case 3:
       editor->load_demo_file(1);
-      editor->show_message("DEMO0 is loaded",1);
-      break;
+      editor->show_message("DEMO1 is loaded",1);
+      return FMRB_RCODE::OK_DONE;
     case 4:
       editor->toggle_highlight();
       if(editor->m_code_hightlight){
@@ -767,7 +788,7 @@ static FMRB_RCODE editor_menu_cb(uint32_t fid,FmrbMenuModule* menu)
       }else{
         editor->show_message("Code Highlight is disabled");
       }
-      break;
+      return FMRB_RCODE::OK_DONE;
     default:
     break;
   }
@@ -799,6 +820,31 @@ void FmrbEditor::open_menu(void)
 void FmrbEditor::toggle_highlight(void)
 {
   m_code_hightlight = m_code_hightlight ? false : true;
+}
+
+FmrbVkey FmrbEditor::read_demo_vkey(bool reset)
+{
+  static int cursor = 0;
+  FmrbVkey rk = FmrbVkey::VK_NONE;
+  if(reset)
+  {
+    FMRB_DEBUG(FMRB_LOG::DEBUG,"Reset Cursor Point\n");
+    cursor = 0;
+  }else{
+    //FMRB_DEBUG(FMRB_LOG::DEBUG,"move Cursor [%d]\n",cursor);
+    char c = sample_script[cursor];
+    if(c=='\0'){
+      rk = FmrbVkey::VK_F4;
+    }else{
+      if(c=='\n'){
+        rk = FmrbVkey::VK_RETURN;
+      }else{
+        rk = FmrbTerminalInput::ascii_to_vkey(c);
+      }
+      cursor++;
+    }
+  }
+  return rk;
 }
 
 /**

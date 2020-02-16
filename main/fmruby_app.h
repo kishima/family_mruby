@@ -106,6 +106,7 @@ public:
   int32_t mruby_screen_shift_x;
   int32_t mruby_screen_shift_y;
   int32_t mruby_double_buffer;
+  int32_t demo_mode;
 
   FmrbFileService* m_storage;
 

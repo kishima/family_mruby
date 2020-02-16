@@ -346,7 +346,7 @@ FMRB_RCODE fmrb_subapp_save_config(FmrbMenuModule* menu)
     }else{
       msg_dialog->open_message_dialog("Failed to save configuration");
     }
-    delete confirm_dialog;
+    delete msg_dialog;
   }
   return rcode;
 }

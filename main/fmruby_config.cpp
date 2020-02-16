@@ -30,6 +30,7 @@ main_screen_shift_y(0),
 mruby_screen_shift_x(0),
 mruby_screen_shift_y(0),
 mruby_double_buffer(1),
+demo_mode(0),
 m_storage(nullptr)
 {
   memset(main_mode_line,0,FMRB_MODE_LINE_MAX);
@@ -183,4 +184,5 @@ void FmrbConfig::set_default_value(void)
   mruby_screen_shift_x = 0;
   mruby_screen_shift_y = 0;
   mruby_double_buffer = 1;
+  demo_mode = 0;
 }

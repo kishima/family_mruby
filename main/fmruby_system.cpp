@@ -240,6 +240,15 @@ FMRB_RCODE menu_callback(uint32_t fid,FmrbMenuModule* menu)
       ret = fmrb_subapp_resolution_test(menu);
       break;
     case 15:
+    {
+      auto config = get_system_config();
+      config->demo_mode = 1;
+      FmrbDialog* msg_dialog = new FmrbDialog(menu->m_vga,menu->m_canvas,menu->m_terminal,menu->m_canvas_config);
+      msg_dialog->open_message_dialog("Set demo mode true");
+      delete msg_dialog;
+    }
+      break;
+    case 20:
       fmrb_subapp_save_config(menu);
       break;
     default:
@@ -263,7 +272,8 @@ FmrbMenuItem* FmrbSystemApp::prepare_top_menu(){
        FmrbMenuItem::add_item_tail(m2 ,alloc_text_mem(" mruby Resolution    "),12,menu_callback,FmrbMenuItemType::SELECTABLE);
        FmrbMenuItem::add_item_tail(m2 ,alloc_text_mem(" mruby Double buffer "),13,menu_callback,FmrbMenuItemType::SELECTABLE);
        FmrbMenuItem::add_item_tail(m2 ,alloc_text_mem(" Resolution Test     "),14,menu_callback,FmrbMenuItemType::SELECTABLE);
-       FmrbMenuItem::add_item_tail(m2 ,alloc_text_mem(" Save Config         "),15,menu_callback,FmrbMenuItemType::SELECTABLE);
+       FmrbMenuItem::add_item_tail(m2 ,alloc_text_mem(" Set Demo mode       "),15,menu_callback,FmrbMenuItemType::SELECTABLE);
+       FmrbMenuItem::add_item_tail(m2 ,alloc_text_mem(" Save Config         "),20,menu_callback,FmrbMenuItemType::SELECTABLE);
 
   return top;
 }
@@ -290,6 +300,12 @@ FMRB_RCODE FmrbSystemApp::run_editor(){
       init_terminal();
       m_resolution_updated = false;
     }
+    
+    auto config = get_system_config();
+    if(config->demo_mode != 0){
+      m_editor->reset();
+    }
+
     m_editor->begin(&m_mruby_engine);
     fmrb_dump_mem_stat();
     FMRB_RCODE result = m_editor->run(m_script);
@@ -639,12 +655,27 @@ char FmrbTerminalInput::to_ascii(FmrbVkey k)
   return 0;
 }
 
-FmrbVkey FmrbTerminalInput::read_vkey()
+FmrbVkey FmrbTerminalInput::ascii_to_vkey(unsigned char c)
+{
+  if(c>0x7f){
+    return FmrbVkey::VK_NONE;
+  }
+  return _ascii_to_vkey_map[c];
+}
+
+FmrbVkey FmrbTerminalInput::read_vkey(int timeout)
 {
   int escape = 0;
   char escape_c[4] = {0};
-  while(true)
+ 
+  uint32_t start_time = xTaskGetTickCount()*portTICK_RATE_MS;
+ while(true)
   {
+    uint32_t current_time = xTaskGetTickCount()*portTICK_RATE_MS;
+    if(timeout>0 && current_time > start_time + timeout){
+      return FmrbVkey::VK_NONE;
+    }
+
     if (m_terminal->available())
     {
       char c = m_terminal->read();
