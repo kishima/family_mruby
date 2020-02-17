@@ -46,7 +46,7 @@ void fabgl_init(void)
 
 void fabgl_terminal_mode_init(FmrbConfig* config)
 {
-  FMRB_DEBUG(FMRB_LOG::DEBUG,"Main screen: %s\n",config->main_mode_line);
+  FMRB_DEBUG(FMRB_LOG::DEBUG,"Main screen: %s(%d,%d)\n",config->main_mode_line,config->main_screen_shift_x,config->main_screen_shift_y);
   VGAController.setResolution(config->main_mode_line);
   VGAController.moveScreen(config->main_screen_shift_x, config->main_screen_shift_y);
 }

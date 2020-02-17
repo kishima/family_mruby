@@ -1,4 +1,3 @@
-
 /*
  Created by Katsuhiko KAGEYAMA(@kishima) - <https://silentworlds.info>
  Copyright (c) 2019-2020 Katsuhiko KAGEYAMA.
