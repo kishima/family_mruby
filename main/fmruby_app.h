@@ -240,6 +240,7 @@ enum class FMRB_JPAD_KEY{
 #define FMRB_DBG_MSG_MAX_LEN (1024)
 class FmrbMrubyEngine {
 public:
+  OVERLOAD_SPI_ALLOCATOR
   FmrbMrubyEngine();
   ~FmrbMrubyEngine();
   void run(char* code_string);
@@ -261,6 +262,24 @@ private:
 };
 
 /**
+ * FmrbAudio
+ **/
+
+class FmrbAudio{
+public:
+  OVERLOAD_SPI_ALLOCATOR
+  FmrbAudio();
+  ~FmrbAudio();
+  void load();
+  void play();
+  void stop();
+
+private:
+  SoundGenerator* m_generator;
+  WaveformGenerator* m_wavegen;
+};
+
+/**
  * System app
  **/
 
@@ -278,12 +297,13 @@ public:
   fabgl::PS2Controller *m_ps2;
   fabgl::Canvas *m_canvas;
   FmrbConfig *m_config;
+  FmrbMrubyEngine *m_mruby_engine;
+  FmrbFileService *m_storage;
   bool m_resolution_updated;
 
   FmrbSystemApp(fabgl::VGAController*,fabgl::PS2Controller*,fabgl::Canvas*);
   void init(FmrbFileService* st);
   FMRB_RCODE run();
-  FmrbMrubyEngine *mruby_engign();
 
   static void draw_img(fabgl::VGAController *vga,uint16_t x0,uint16_t y0,uint8_t* data,int mode);
 
@@ -294,8 +314,6 @@ private:
   bool m_terminal_available;
   fabgl::Terminal m_terminal;
   FmrbMenuModule *m_main_menu;
-  FmrbMrubyEngine m_mruby_engine;
-  FmrbFileService *m_storage;
 
   FMRB_RCODE init_terminal();
   FMRB_RCODE close_terminal();
@@ -309,12 +327,15 @@ private:
 
 };
 
-char* alloc_text_mem(const char* input);
-FmrbConfig* get_system_config(void);
-
 FMRB_RCODE fmrb_subapp_resolution_test(FmrbMenuModule* menu);
 FMRB_RCODE fmrb_subapp_select_main_resolution(FmrbMenuModule* menu);
 FMRB_RCODE fmrb_subapp_select_mruby_resolution(FmrbMenuModule* menu);
 FMRB_RCODE fmrb_subapp_set_mruby_buffering(FmrbMenuModule* menu);
 int16_t fmrb_subapp_select_file(FmrbDir* dir_obj,FmrbDialog *dialog);
 FMRB_RCODE fmrb_subapp_save_config(FmrbMenuModule* menu);
+
+// public function
+FmrbSystemApp* fmrb_get_system_obj(void);
+char* alloc_text_mem(const char* input);
+FmrbConfig* get_system_config(void);
+

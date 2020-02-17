@@ -36,23 +36,50 @@
 //#define TEST_UART
 
 #include "fmruby.h"
+#include "fmruby_hw_config.h"
 #include "fmruby_fabgl.h"
 #include "fmruby_app.h"
 
-//Shared with mrbgem
-extern fabgl::VGAController VGAController;
-extern fabgl::PS2Controller PS2Controller;
-extern fabgl::Canvas        FMRB_canvas;
-FmrbFileService             FMRB_storage;
+static fabgl::VGAController VGAController;
+static fabgl::PS2Controller PS2Controller;
+static fabgl::Canvas        FMRB_canvas(&VGAController);
+static FmrbFileService      FMRB_storage;
+
+void fabgl_init(void)
+{
+  PS2Controller.begin(PS2Preset::KeyboardPort0);
+  VGAController.begin(VGA_RED1, VGA_RED0, VGA_GREEN1, VGA_GREEN0, VGA_BLUE1, VGA_BLUE0, VGA_HSYNC, VGA_VSYNC);
+}
+
+void fabgl_terminal_mode_init(FmrbConfig* config)
+{
+  FMRB_DEBUG(FMRB_LOG::DEBUG,"Main screen: %s(%d,%d)\n",config->main_mode_line,config->main_screen_shift_x,config->main_screen_shift_y);
+  VGAController.setResolution(config->main_mode_line);
+  VGAController.moveScreen(config->main_screen_shift_x, config->main_screen_shift_y);
+}
+
+void fabgl_mruby_mode_init(FmrbConfig* config)
+{
+  bool double_buffer = true;
+  if(0 == config->mruby_double_buffer) double_buffer=false;
+  FMRB_DEBUG(FMRB_LOG::DEBUG,"Mruby screen: %s [%d]\n",config->mruby_mode_line,double_buffer);
+  VGAController.setResolution(config->mruby_mode_line, -1, -1, double_buffer);
+  VGAController.moveScreen(config->mruby_screen_shift_x, config->mruby_screen_shift_y);
+}
 
 //Local data
 
-TaskHandle_t mainTaskHandle = NULL;
-FmrbSystemApp SystemApp(&VGAController,&PS2Controller,&FMRB_canvas);
+static TaskHandle_t mainTaskHandle = NULL;
+static FmrbSystemApp SystemApp(&VGAController,&PS2Controller,&FMRB_canvas);
 
 FmrbConfig* get_system_config(void)
 {
   return SystemApp.m_config;
+}
+
+FmrbSystemApp* fmrb_get_system_obj(void)
+{
+  return &SystemApp;
 }
 
 void* fmrb_spi_malloc(size_t size)
@@ -274,10 +301,6 @@ static void uart_test()
 #ifdef RUN_MAIN
 void setup(){
 #ifndef TEST_SD
-  //SPI SD pins
-  //pinMode(12, OUTPUT);
-  //pinMode(13, OUTPUT);
-  //pinMode(14, OUTPUT);
   pinMode(15, OUTPUT); //SS
   //digitalWrite(15,HIGH);//HIGH => NOT selected
   gpio_pullup_en(GPIO_NUM_12); //=> 12 must be low during BOOT
@@ -285,7 +308,7 @@ void setup(){
 #endif
 
   //for Grove UART
-  Serial2.begin(9600,SERIAL_8N1,GPIO_NUM_34,GPIO_NUM_26,false,20000UL);
+  Serial2.begin(9600,SERIAL_8N1,FMRB_UART_RX,FMRB_UART_TX,false,20000UL);
 
   nvs_flash_init();
   FMRB_DEBUG(FMRB_LOG::INFO,"nvs_flash_init() done\n");

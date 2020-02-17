@@ -1,3 +1,4 @@
+
 /*
  Created by Katsuhiko KAGEYAMA(@kishima) - <https://silentworlds.info>
  Copyright (c) 2019-2020 Katsuhiko KAGEYAMA.
@@ -19,9 +20,7 @@
  along with Family mruby.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fabgl.h"
-#include "fmruby.h"
-#include "fmruby_fabgl.h"
+#pragma once
 
 // indicate VGA GPIOs to use for selected color configuration for Narya borad
 #define VGA_RED1   GPIO_NUM_22
@@ -33,29 +32,6 @@
 #define VGA_HSYNC  GPIO_NUM_23
 #define VGA_VSYNC  GPIO_NUM_27
 
-// Shared with mgem
-fabgl::VGAController VGAController;
-fabgl::PS2Controller PS2Controller;
-fabgl::Canvas        FMRB_canvas(&VGAController);
+#define FMRB_UART_RX GPIO_NUM_34
+#define FMRB_UART_TX GPIO_NUM_26
 
-void fabgl_init(void)
-{
-  PS2Controller.begin(PS2Preset::KeyboardPort0);
-  VGAController.begin(VGA_RED1, VGA_RED0, VGA_GREEN1, VGA_GREEN0, VGA_BLUE1, VGA_BLUE0, VGA_HSYNC, VGA_VSYNC);
-}
-
-void fabgl_terminal_mode_init(FmrbConfig* config)
-{
-  FMRB_DEBUG(FMRB_LOG::DEBUG,"Main screen: %s(%d,%d)\n",config->main_mode_line,config->main_screen_shift_x,config->main_screen_shift_y);
-  VGAController.setResolution(config->main_mode_line);
-  VGAController.moveScreen(config->main_screen_shift_x, config->main_screen_shift_y);
-}
-
-void fabgl_mruby_mode_init(FmrbConfig* config)
-{
-  bool double_buffer = true;
-  if(0 == config->mruby_double_buffer) double_buffer=false;
-  FMRB_DEBUG(FMRB_LOG::DEBUG,"Mruby screen: %s [%d]\n",config->mruby_mode_line,double_buffer);
-  VGAController.setResolution(config->mruby_mode_line, -1, -1, double_buffer);
-  VGAController.moveScreen(config->mruby_screen_shift_x, config->mruby_screen_shift_y);
-}

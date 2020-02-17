@@ -19,3 +19,50 @@
  along with Family mruby.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+
+#include "fmruby.h"
+#include "fmruby_app.h"
+#include "fmruby_fabgl.h"
+
+FmrbAudio::FmrbAudio()
+{
+  fmrb_dump_mem_stat();
+  m_generator = new SoundGenerator();
+  fmrb_dump_mem_stat();
+  m_generator = nullptr;
+}
+
+FmrbAudio::~FmrbAudio()
+{
+  if(m_generator){
+    delete(m_generator);
+  }
+  if(m_wavegen){
+    delete(m_wavegen);
+  }
+}
+
+void FmrbAudio::load()
+{
+  fmrb_dump_mem_stat();
+  m_wavegen = new SquareWaveformGenerator();
+  m_wavegen->enable(true);
+  m_wavegen->setFrequency(500);
+  m_generator->attach(m_wavegen);
+  fmrb_dump_mem_stat();
+}
+
+void FmrbAudio::play()
+{
+  m_generator->play(true);
+  m_generator->setVolume(100);
+
+}
+
+void FmrbAudio::stop()
+{
+  m_generator->play(false);
+  //if(m_wavegen){
+  //  m_generator->detach(m_wavegen);
+  //}
+}

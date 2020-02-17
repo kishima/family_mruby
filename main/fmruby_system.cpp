@@ -30,16 +30,21 @@ FmrbSystemApp::FmrbSystemApp(fabgl::VGAController *v,fabgl::PS2Controller *ps2,f
 m_vga(v),
 m_ps2(ps2),
 m_canvas(c),
-m_resolution_updated(false)
+m_config(nullptr),
+m_mruby_engine(nullptr),
+m_storage(nullptr),
+m_resolution_updated(false), 
+//--
+m_script(nullptr),
+m_state(FMRB_SYS_STATE::INIT),
+m_editor(nullptr),
+m_terminal_available(false),
+m_main_menu(nullptr)
 {
-  m_state = FMRB_SYS_STATE::INIT;
-  m_terminal_available = false;
-  m_editor = nullptr;
-  m_main_menu = nullptr;
-  m_storage = nullptr;
 }
 
 void FmrbSystemApp::init(FmrbFileService* fs){
+  m_mruby_engine = new FmrbMrubyEngine();
   m_storage = fs;
   m_storage->init();
 
@@ -306,7 +311,7 @@ FMRB_RCODE FmrbSystemApp::run_editor(){
       m_editor->reset();
     }
 
-    m_editor->begin(&m_mruby_engine);
+    m_editor->begin(m_mruby_engine);
     fmrb_dump_mem_stat();
     FMRB_RCODE result = m_editor->run(m_script);
 
@@ -325,7 +330,7 @@ FMRB_RCODE FmrbSystemApp::run_mruby(){
   if(m_script){
     fabgl_mruby_mode_init(m_config);
     fmrb_dump_mem_stat();
-    m_mruby_engine.run(m_script);
+    m_mruby_engine->run(m_script);
     FMRB_DEBUG(FMRB_LOG::DEBUG,"m_mruby_engine END\n");
   }
   return FMRB_RCODE::OK;
@@ -415,11 +420,6 @@ FMRB_RCODE FmrbSystemApp::run()
     }
   }
   return FMRB_RCODE::OK;
-}
-
-FmrbMrubyEngine *FmrbSystemApp::mruby_engign()
-{
-  return &m_mruby_engine;
 }
 
 /**

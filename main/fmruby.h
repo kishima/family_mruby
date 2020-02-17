@@ -21,9 +21,10 @@
 #pragma once
 
 #include "fabgl.h"
+#include "fabutils.h"
 #include "fmruby_virtual_key.h"
 
-#define FMRB_VERSION "0.6.0"
+#define FMRB_VERSION "0.6.1"
 #define FMRB_RELEASE "2020/02/12"
 
 #define FMRB_MAIN_TASK_PRIORITY 1
@@ -32,6 +33,7 @@
 #define FMRB_MAIN_TASK_STACK_SIZE (1024*16)
 #define FMRB_UART_TASK_STACK_SIZE (1024*2)
 
+// public function
 void* fmrb_spi_malloc(size_t size);
 void* fmrb_spi_realloc(void* ptr, size_t size);
 void fmrb_free(void* ptr);
@@ -98,8 +100,7 @@ struct FmrbCanvasConfig {
   void set(fabgl::Canvas*);
 };
 
-
-
+//debug
 void fmrb_debug_print(FMRB_LOG lv,const char *fmt,const char* func,int line,...);
 void fmrb_dump_mem_stat();
 
