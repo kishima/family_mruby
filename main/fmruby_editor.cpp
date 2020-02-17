@@ -141,6 +141,10 @@ FMRB_RCODE FmrbEditor::run(char* input_script){
     }
   }else{
     load(null_script);
+    vTaskDelay(20);
+    read_vkey(0);
+    vTaskDelay(20);
+    read_vkey(0);
   }
 
   //Check last execution status
@@ -169,14 +173,14 @@ FMRB_RCODE FmrbEditor::run(char* input_script){
       vkey = read_vkey();
     }else{
       vTaskDelay(30);
-      //vkey = read_vkey();
-      //if(vkey == FmrbVkey::VK_NONE){
-      //  config->demo_mode=0;
-      //}
+      vkey = read_vkey(0);
+      if(vkey != FmrbVkey::VK_NONE){
+        FMRB_DEBUG(FMRB_LOG::MSG,"Stop demo mode\n");
+        config->demo_mode=0;
+      }
       vkey = read_demo_vkey(demo_init);
       demo_init = false;
     }
-    //printf("V> %d\n",(int)vkey);
     if(FmrbTerminalInput::is_visible(vkey)){
       int akey = FmrbTerminalInput::to_ascii(vkey);
       insert_ch(akey);

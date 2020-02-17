@@ -668,14 +668,10 @@ FmrbVkey FmrbTerminalInput::read_vkey(int timeout)
   int escape = 0;
   char escape_c[4] = {0};
  
-  uint32_t start_time = xTaskGetTickCount()*portTICK_RATE_MS;
- while(true)
+  uint32_t start_time = xTaskGetTickCount()/portTICK_PERIOD_MS;
+  while(true)
   {
-    uint32_t current_time = xTaskGetTickCount()*portTICK_RATE_MS;
-    if(timeout>0 && current_time > start_time + timeout){
-      return FmrbVkey::VK_NONE;
-    }
-
+    uint32_t current_time = xTaskGetTickCount()/portTICK_PERIOD_MS;
     if (m_terminal->available())
     {
       char c = m_terminal->read();
@@ -841,6 +837,11 @@ FmrbVkey FmrbTerminalInput::read_vkey(int timeout)
           escape_c[3] = 0;
         }
       }
+    }else{
+      if(timeout>=0 && current_time > start_time + timeout){
+        return FmrbVkey::VK_NONE;
+      }
+      //FMRB_DEBUG(FMRB_LOG::DEBUG,"> Q:%d (%d/%d)\n",m_terminal->available(),current_time,start_time);
     }
   }
 }
