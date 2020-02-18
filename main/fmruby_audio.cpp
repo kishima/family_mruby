@@ -26,10 +26,10 @@
 
 FmrbAudio::FmrbAudio()
 {
-  fmrb_dump_mem_stat();
-  m_generator = new SoundGenerator();
-  fmrb_dump_mem_stat();
-  m_generator = nullptr;
+  fmrb_dump_mem_stat(1);
+  m_generator = new SoundGenerator(DEFAULT_SAMPLE_RATE);
+  fmrb_dump_mem_stat(2);
+  m_wavegen = nullptr;
 }
 
 FmrbAudio::~FmrbAudio()
@@ -44,12 +44,14 @@ FmrbAudio::~FmrbAudio()
 
 void FmrbAudio::load()
 {
-  fmrb_dump_mem_stat();
+  fmrb_dump_mem_stat(1);
   m_wavegen = new SquareWaveformGenerator();
   m_wavegen->enable(true);
+  m_wavegen->setSampleRate(DEFAULT_SAMPLE_RATE);
   m_wavegen->setFrequency(500);
+  m_wavegen->setVolume(100);
   m_generator->attach(m_wavegen);
-  fmrb_dump_mem_stat();
+  fmrb_dump_mem_stat(2);
 }
 
 void FmrbAudio::play()

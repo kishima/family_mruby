@@ -30,7 +30,8 @@
 const char* null_script = "\n";
 
 const char* sample_script = 
-#include "./mrb/demo.rb"
+//#include "./mrb/demo.rb"
+#include "./mrb/sound_test.rb"
 ;
 
 const char* sample_script2 = 

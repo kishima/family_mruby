@@ -1,4 +1,3 @@
-
 /*
  Created by Katsuhiko KAGEYAMA(@kishima) - <https://silentworlds.info>
  Copyright (c) 2019-2020 Katsuhiko KAGEYAMA.
@@ -34,6 +33,7 @@
 
 
 FmrbMrubyEngine::FmrbMrubyEngine():
+m_sound_engine(nullptr),
 m_exec_result(FMRB_RCODE::OK),
 m_error_line(0)
 {
@@ -200,6 +200,7 @@ void FmrbMrubyEngine::prepare_env()
   //create a task for UART input
   xTaskCreateUniversal(uartTask, "uartTask", FMRB_UART_TASK_STACK_SIZE, m_joypad_map, FMRB_UART_TASK_PRIORITY, &uartTaskHandle, CONFIG_ARDUINO_RUNNING_CORE);
   //create sound module
+  m_sound_engine = new FmrbAudio();
 
   m_exec_result = FMRB_RCODE::OK;
   m_error_msg[0] = '\0';
@@ -214,6 +215,12 @@ void FmrbMrubyEngine::cleanup_env()
     uartTaskHandle=NULL;
   }
   //remove sound module
+  if(m_sound_engine){
+    FMRB_DEBUG(FMRB_LOG::DEBUG,"remove sound module\n");
+    delete m_sound_engine;
+    m_sound_engine = nullptr;
+    FMRB_DEBUG(FMRB_LOG::DEBUG,"remove sound module Done\n");
+  }
 }
 
 void FmrbMrubyEngine::run(char* code_string)
@@ -221,7 +228,9 @@ void FmrbMrubyEngine::run(char* code_string)
   FMRB_DEBUG(FMRB_LOG::INFO,"<Execute mruby script>\n");
   prepare_env();
 
+  fmrb_dump_mem_stat(1);
   mrb_state *mrb = mrb_open_allocf(mrb_esp32_psram_allocf,NULL);
+  fmrb_dump_mem_stat(2);
 
   int ai = mrb_gc_arena_save(mrb);
 

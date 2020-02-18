@@ -228,6 +228,26 @@ private:
   void exec_menu(FmrbMenuItem* head_item);
 };
 
+
+/**
+ * FmrbAudio
+ **/
+
+class FmrbAudio{
+public:
+  OVERLOAD_SPI_ALLOCATOR
+  FmrbAudio();
+  ~FmrbAudio();
+  void load();
+  void play();
+  void stop();
+
+private:
+  SoundGenerator* m_generator;
+  WaveformGenerator* m_wavegen;
+};
+
+
 /**
  * mruby engine
  **/
@@ -248,6 +268,7 @@ public:
   const char *get_error_msg();
   int get_error_line();
   FMRB_RCODE get_result();
+  FmrbAudio *m_sound_engine;
 
 private:
   FMRB_RCODE m_exec_result;
@@ -259,24 +280,6 @@ private:
   void check_backtrace(mrb_state *mrb,mrb_value v);
   void prepare_env();
   void cleanup_env();
-};
-
-/**
- * FmrbAudio
- **/
-
-class FmrbAudio{
-public:
-  OVERLOAD_SPI_ALLOCATOR
-  FmrbAudio();
-  ~FmrbAudio();
-  void load();
-  void play();
-  void stop();
-
-private:
-  SoundGenerator* m_generator;
-  WaveformGenerator* m_wavegen;
 };
 
 /**

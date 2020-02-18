@@ -40,10 +40,16 @@
 #include "fmruby_fabgl.h"
 #include "fmruby_app.h"
 
+//Local data
+
 static fabgl::VGAController VGAController;
 static fabgl::PS2Controller PS2Controller;
 static fabgl::Canvas        FMRB_canvas(&VGAController);
+
 static FmrbFileService      FMRB_storage;
+static FmrbSystemApp SystemApp(&VGAController,&PS2Controller,&FMRB_canvas);
+
+static TaskHandle_t mainTaskHandle = NULL;
 
 void fabgl_init(void)
 {
@@ -67,16 +73,12 @@ void fabgl_mruby_mode_init(FmrbConfig* config)
   VGAController.moveScreen(config->mruby_screen_shift_x, config->mruby_screen_shift_y);
 }
 
-//Local data
-
-static TaskHandle_t mainTaskHandle = NULL;
-static FmrbSystemApp SystemApp(&VGAController,&PS2Controller,&FMRB_canvas);
-
 FmrbConfig* get_system_config(void)
 {
   return SystemApp.m_config;
 }
 
+//for mrbgem
 FmrbSystemApp* fmrb_get_system_obj(void)
 {
   return &SystemApp;
@@ -100,19 +102,34 @@ void fmrb_free(void* ptr){
   free(ptr);
 }
 
-FmrbConfig* get_system_config(void);
-
-
-void fmrb_dump_mem_stat(){
-
-  FMRB_DEBUG(FMRB_LOG::INFO," -- mem dump ------------------------\n");
-  FMRB_DEBUG(FMRB_LOG::INFO," | Free size(DMA)     = %d\n",heap_caps_get_free_size(MALLOC_CAP_DMA));
-  FMRB_DEBUG(FMRB_LOG::INFO," | Max free size(DMA) = %d\n",heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
-  FMRB_DEBUG(FMRB_LOG::INFO," | Free size(32bit)   = %d\n",heap_caps_get_free_size(MALLOC_CAP_32BIT));
-  FMRB_DEBUG(FMRB_LOG::INFO," | Free size(SPI)     = %d\n",heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-  FMRB_DEBUG(FMRB_LOG::INFO," | Free size(INTERNAL)= %d\n",heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
-  FMRB_DEBUG(FMRB_LOG::INFO," ------------------------------------\n");
-  //heap_caps_print_heap_info(MALLOC_CAP_DMA);
+void fmrb_dump_mem_stat(int diff){
+  static size_t a1 = 0;
+  static size_t a2 = 0;
+  static size_t a3 = 0;
+  static size_t a4 = 0;
+  static size_t a5 = 0;
+  if(diff==0 || diff==1){
+    FMRB_DEBUG(FMRB_LOG::INFO," -- mem dump ------------------------\n");
+    FMRB_DEBUG(FMRB_LOG::INFO," | Free size(DMA)     = %d\n",heap_caps_get_free_size(MALLOC_CAP_DMA));
+    FMRB_DEBUG(FMRB_LOG::INFO," | Max free size(DMA) = %d\n",heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
+    FMRB_DEBUG(FMRB_LOG::INFO," | Free size(32bit)   = %d\n",heap_caps_get_free_size(MALLOC_CAP_32BIT));
+    FMRB_DEBUG(FMRB_LOG::INFO," | Free size(SPI)     = %d\n",heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    FMRB_DEBUG(FMRB_LOG::INFO," | Free size(INTERNAL)= %d\n",heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    FMRB_DEBUG(FMRB_LOG::INFO," ------------------------------------\n");
+    a1 = heap_caps_get_free_size(MALLOC_CAP_DMA);
+    a2 = heap_caps_get_largest_free_block(MALLOC_CAP_DMA);
+    a3 = heap_caps_get_free_size(MALLOC_CAP_32BIT);
+    a4 = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    a5 = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+  }else{
+    FMRB_DEBUG(FMRB_LOG::INFO," -- mem dump(Diff) ------------------\n");
+    FMRB_DEBUG(FMRB_LOG::INFO," | Free size(DMA)     = %d\n",a1-heap_caps_get_free_size(MALLOC_CAP_DMA));
+    FMRB_DEBUG(FMRB_LOG::INFO," | Max free size(DMA) = %d\n",a2-heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
+    FMRB_DEBUG(FMRB_LOG::INFO," | Free size(32bit)   = %d\n",a3-heap_caps_get_free_size(MALLOC_CAP_32BIT));
+    FMRB_DEBUG(FMRB_LOG::INFO," | Free size(SPI)     = %d\n",a4-heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    FMRB_DEBUG(FMRB_LOG::INFO," | Free size(INTERNAL)= %d\n",a5-heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    FMRB_DEBUG(FMRB_LOG::INFO," ------------------------------------\n");
+  }
 }
 
 void fmrb_debug_print(FMRB_LOG lv,const char *fmt,const char* func,int line, ...)
