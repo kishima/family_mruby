@@ -71,6 +71,11 @@ void fabgl_mruby_mode_init(FmrbConfig* config)
   FMRB_DEBUG(FMRB_LOG::DEBUG,"Mruby screen: %s [%d]\n",config->mruby_mode_line,double_buffer);
   VGAController.setResolution(config->mruby_mode_line, -1, -1, double_buffer);
   VGAController.moveScreen(config->mruby_screen_shift_x, config->mruby_screen_shift_y);
+  FMRB_canvas.clear();
+  if(double_buffer){
+    FMRB_canvas.swapBuffers();
+    FMRB_canvas.clear();
+  }
 }
 
 FmrbConfig* get_system_config(void)

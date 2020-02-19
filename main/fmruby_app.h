@@ -205,7 +205,7 @@ class FmrbMenuModule : public FmrbTerminalInput {
 public:
   fabgl::VGAController *m_vga;
   fabgl::Canvas *m_canvas;
-  fabgl::Terminal* m_terminal;
+  fabgl::Terminal *m_terminal;
   FmrbCanvasConfig *m_canvas_config;
   void *m_param;
 
@@ -235,16 +235,22 @@ private:
 
 class FmrbAudio{
 public:
+  SoundGenerator* m_generator;
+  WaveformGenerator* m_wavegen;
+  volatile int play_stat;
+
   OVERLOAD_SPI_ALLOCATOR
   FmrbAudio();
   ~FmrbAudio();
-  void load();
-  void play();
+  void load_mml(const char*);
+  void play_mml();
   void stop();
 
 private:
-  SoundGenerator* m_generator;
-  WaveformGenerator* m_wavegen;
+  char* m_mml_str;
+  TaskHandle_t m_musicTaskHandle;
+
+  static void musicTask(void * arg);
 };
 
 

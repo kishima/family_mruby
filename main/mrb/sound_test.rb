@@ -1,12 +1,7 @@
 R"( #"
 include Narya
 
-Display::clear
-Display::swap
-Display::clear
-Display::swap
-
-Sound::load
+Sound::load_mml("O4FO5FC")
 Sound::play
 
 loop do
