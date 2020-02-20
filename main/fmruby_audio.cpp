@@ -122,36 +122,37 @@ static const int freq_scale[] = {
 
 static int solfa_to_i(char* solfa)
 {
+  printf("cmp:%s\n",solfa);
   if(0==strcmp("C",solfa)){
     return 0;
   }else if(0==strcmp("C+",solfa)){
     return 1;
   }else if(0==strcmp("D-",solfa)){
     return 1;
-  }else if(0==strcmp("D",solfa)){
-    return 2;
   }else if(0==strcmp("D+",solfa)){
     return 3;
+  }else if(0==strcmp("D",solfa)){
+    return 2;
   }else if(0==strcmp("E-",solfa)){
     return 3;
   }else if(0==strcmp("E",solfa)){
     return 4;
-  }else if(0==strcmp("F",solfa)){
-    return 5;
   }else if(0==strcmp("F+",solfa)){
     return 6;
+  }else if(0==strcmp("F",solfa)){
+    return 5;
   }else if(0==strcmp("G-",solfa)){
     return 6;
-  }else if(0==strcmp("G",solfa)){
-    return 7;
   }else if(0==strcmp("G+",solfa)){
     return 8;
+  }else if(0==strcmp("G",solfa)){
+    return 7;
   }else if(0==strcmp("A-",solfa)){
     return 8;
-  }else if(0==strcmp("A",solfa)){
-    return 9;
   }else if(0==strcmp("A+",solfa)){
     return 10;
+  }else if(0==strcmp("A",solfa)){
+    return 9;
   }else if(0==strcmp("B-",solfa)){
     return 10;
   }else if(0==strcmp("B",solfa)){
@@ -160,28 +161,42 @@ static int solfa_to_i(char* solfa)
   return 0;
 }
 
-static int octave_to_i(char* oct){
-  if(0==strcmp("O0",oct)){
-    return -9;
-  }else if(0==strcmp("O1",oct)){
-    return 3;
-  }else if(0==strcmp("O2",oct)){
-    return 15;
-  }else if(0==strcmp("O3",oct)){
-    return 27;
-  }else if(0==strcmp("O4",oct)){
-    return 39;
-  }else if(0==strcmp("O5",oct)){
-    return 51;
-  }else if(0==strcmp("O6",oct)){
-    return 63;
-  }else if(0==strcmp("O7",oct)){
-    return 75;
-  }else if(0==strcmp("O8",oct)){
-    return 87;
+static int octave_str_to_i(char* oct){
+  if(oct[0]=='O'){
+    int ret = atoi(&oct[1]);
+    if(ret<0)ret=0;
+    if(ret>8)ret=8;
+    return ret;
   }
-  return 39;
+  return 4;
 }
+
+static int octave_to_i(int oct){
+  if(oct<0)oct=0;
+  if(oct>8)oct=8;
+  return -9+oct*12;
+}
+
+static int read_num(char* in,int* num_len){
+  int csr=0;
+  char out[5];
+  while(true){
+    if( in[csr]>='0' && in[csr]<='9'){
+      out[csr]=in[csr];
+      csr++;
+    }else if(in[csr]=='\0'){
+      break;
+    }else{
+      break;
+    }
+    if(csr>=4)break;
+  }
+  if(csr==0)return -1;
+  out[csr]='\0';
+  *num_len=csr;
+  return atoi(out);
+}
+
 
 FmrbAudio::FmrbAudio():
 play_stat(0),
@@ -228,7 +243,9 @@ void FmrbAudio::musicTask(void * arg)
   int len = 0;
   int tempo = 120;
   int duration = 1000*60/tempo; //ms
-  int octave = octave_to_i("O4");
+  int octave = octave_str_to_i("O4");
+  //int octave_int = octave_to_i(octave);
+  int def_slen = 4;
   while(true){
     if(0==audio->play_stat){
       vTaskDelay(100);
@@ -241,16 +258,19 @@ void FmrbAudio::musicTask(void * arg)
       audio->play_stat = 2;
       len = strlen(audio->m_mml_str);
       FMRB_DEBUG(FMRB_LOG::DEBUG,"mml:%s\n",audio->m_mml_str);
+      vTaskDelay(100);
     }
     if(2==audio->play_stat){
       if(len<=0)continue;
       if(csr>=len)csr=0;
       char cmd[10];
       char* mml = audio->m_mml_str;
+      //FMRB_DEBUG(FMRB_LOG::DEBUG,"%s\n",&mml[csr]);
+
       if( mml[csr] >= 'A' && mml[csr] <='G'){ //Solfa
         cmd[0]=mml[csr];
         if(mml[csr+1]=='-' || mml[csr+1]=='+'){
-          cmd[1]=mml[csr];
+          cmd[1]=mml[csr+1];
           cmd[2]='\0';
           csr += 2;
         }else{
@@ -258,24 +278,107 @@ void FmrbAudio::musicTask(void * arg)
           csr += 1;
         }
         int i = solfa_to_i(cmd);
-        int freq = freq_scale[octave+i];
-        duration = 1000*60/tempo; //ms
-        FMRB_DEBUG(FMRB_LOG::DEBUG,"freq:%d solfa:%d duration:%d\n",freq,i,duration);
+        int freq = freq_scale[octave_to_i(octave)+i];
+
+        int point=0;
+        if(mml[csr]=='.'){
+          point=1;
+          csr++;
+        }
+
+        int num_len = 0;
+        int slen = read_num(mml+csr,&num_len);
+        //FMRB_DEBUG(FMRB_LOG::DEBUG,"num:%d num_len:%d\n",slen,num_len);
+        if(slen>0){
+          csr+=num_len;
+          if(mml[csr]=='.'){
+            point=1;
+            csr++;
+          }
+          duration = 1000*60*4/slen/tempo; //ms
+        }else{
+          duration = 1000*60*4/def_slen/tempo; //ms
+        }
+        if(point){
+          duration = duration * 3 / 2;
+        }
+        FMRB_DEBUG(FMRB_LOG::DEBUG,"freq:%d solfa:%d duration:%d oct:%d\n",freq,i,duration,octave);
         audio->m_wavegen->setFrequency(freq);
         audio->m_wavegen->enable(true);
         vTaskDelay(duration);
+      }else if( mml[csr] == 'R' ){
+        csr++;
+        int num_len = 0;
+        int slen = read_num(mml+csr,&num_len);
+        int point=0;
+        //FMRB_DEBUG(FMRB_LOG::DEBUG,"Rest num:%d num_len:%d\n",slen,num_len);
+        if(slen>0){
+          csr+=num_len;
+          if(mml[csr]=='.'){
+            point=1;
+            csr++;
+          }
+          duration = 1000*60*4/slen/tempo; //ms
+          if(point){
+            duration = duration * 3 / 2;
+          }
+        }else{
+          duration = 1000*60*4/def_slen/tempo; //ms
+        }
+        FMRB_DEBUG(FMRB_LOG::DEBUG,"Rest duration:%d\n",duration);
+        audio->m_wavegen->enable(false);
+        vTaskDelay(duration);
+      }else if( mml[csr] == 'L' ){
+        csr++;
+        int num_len = 0;
+        int tmp = read_num(mml+csr,&num_len);
+        //FMRB_DEBUG(FMRB_LOG::DEBUG,"Default Len num:%d num_len:%d\n",tmp,num_len);
+        if(tmp>0){
+          csr+=num_len;
+          def_slen=tmp;
+        }
+      }else if( mml[csr] == 'T' ){
+        csr++;
+        int num_len = 0;
+        int tmp = read_num(mml+csr,&num_len);
+        //FMRB_DEBUG(FMRB_LOG::DEBUG,"Tempo num:%d num_len:%d\n",tmp,num_len);
+        if(tmp>0){
+          csr+=num_len;
+          tempo = tmp;
+        }
+      }else if( mml[csr] == 'V' ){
+        csr++;
+        int num_len = 0;
+        int vol = read_num(mml+csr,&num_len);
+        //FMRB_DEBUG(FMRB_LOG::DEBUG,"Volume vol:%d num_len:%d\n",vol,num_len);
+        if(vol>=0){
+          csr+=num_len;
+        }
+      }else if( mml[csr] == ' ' ){
+        csr++;
+      }else if( mml[csr] == '&' ){
+        csr++;
       }else if( mml[csr] == 'O' ){
          //Octave
         cmd[0]=mml[csr];
         cmd[1]=mml[csr+1];
         cmd[2]='\0';
-        octave = octave_to_i(cmd);
+        octave = octave_str_to_i(cmd);
         FMRB_DEBUG(FMRB_LOG::DEBUG,"octave:%d\n",octave);
         csr += 2;
+      }else if( mml[csr] == '<' ){
+        csr++;
+        octave++;
+        FMRB_DEBUG(FMRB_LOG::DEBUG,"octave+:%d\n",octave);
+        if(octave>8)octave=8;
+      }else if( mml[csr] == '>' ){
+        csr++;
+        octave--;
+        FMRB_DEBUG(FMRB_LOG::DEBUG,"octave-:%d\n",octave);
+        if(octave<0)octave=0;
       }else{
         vTaskDelay(10);
       }
-      FMRB_DEBUG(FMRB_LOG::DEBUG,"csr:%d\n",csr);
 
     }
 
