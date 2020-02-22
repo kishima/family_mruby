@@ -236,6 +236,7 @@ class FmrbMmlChannel{
 public:
   int m_freq;
   int m_instrument;
+  int m_volume;
   uint32_t m_duration;
 
   OVERLOAD_SPI_ALLOCATOR
@@ -244,7 +245,8 @@ public:
   void load(const char* mml);
   bool fetch(uint32_t play_pos);
   void reset();
-private:
+  uint32_t remain_duration();
+ private:
   int m_csr;
   int m_mml_len;
   char* m_mml_str;

@@ -122,7 +122,7 @@ static const int freq_scale[] = {
 
 static int solfa_to_i(const char* solfa)
 {
-  printf("cmp:%s\n",solfa);
+  //printf("cmp:%s\n",solfa);
   if(0==strcmp("C",solfa)){
     return 0;
   }else if(0==strcmp("C+",solfa)){
@@ -246,7 +246,7 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
     return false;
   }
   if(play_pos > m_next_play_pos){
-
+    return false;
   }
 
   char cmd[10];
@@ -288,7 +288,6 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
 
       int num_len = 0;
       int slen = read_num(mml + m_csr, &num_len);
-      //FMRB_DEBUG(FMRB_LOG::DEBUG,"num:%d num_len:%d\n",slen,num_len);
       if (slen > 0)
       {
         m_csr += num_len;
@@ -318,7 +317,6 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
       int num_len = 0;
       int slen = read_num(mml + m_csr, &num_len);
       int point = 0;
-      //FMRB_DEBUG(FMRB_LOG::DEBUG,"Rest num:%d num_len:%d\n",slen,num_len);
       if (slen > 0)
       {
         m_csr += num_len;
@@ -349,7 +347,6 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
       m_csr++;
       int num_len = 0;
       int tmp = read_num(mml + m_csr, &num_len);
-      //FMRB_DEBUG(FMRB_LOG::DEBUG,"Default Len num:%d num_len:%d\n",tmp,num_len);
       if (tmp > 0)
       {
         m_csr += num_len;
@@ -373,9 +370,10 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
       m_csr++;
       int num_len = 0;
       int vol = read_num(mml + m_csr, &num_len);
-      //FMRB_DEBUG(FMRB_LOG::DEBUG,"Volume vol:%d num_len:%d\n",vol,num_len);
+      FMRB_DEBUG(FMRB_LOG::DEBUG,"Volume vol:%d num_len:%d\n",vol,num_len);
       if (vol >= 0)
       {
+        m_volume = vol;
         m_csr += num_len;
       }
     }
@@ -417,6 +415,12 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
   return update;
 }
 
+uint32_t FmrbMmlChannel::remain_duration()
+{
+  if(m_next_play_pos<m_play_pos) return 0;
+  return m_next_play_pos - m_play_pos;
+}
+
 /**
  * FmrbAudio
  **/
@@ -429,7 +433,11 @@ m_volume(128/2)
 
   for(int i=0;i<FMRB_AUDIO_MAX_CHANNEL;i++){
     m_mml_ch[i] = new FmrbMmlChannel();
-    m_wavegen[i] = new SquareWaveformGenerator();
+    if(i==0){
+      m_wavegen[i] = new SquareWaveformGenerator();
+    }else{
+      m_wavegen[i] = new TriangleWaveformGenerator();
+    }
     m_wavegen[i]->enable(false);
     m_wavegen[i]->setSampleRate(DEFAULT_SAMPLE_RATE);
     m_wavegen[i]->setFrequency(500);
@@ -500,19 +508,22 @@ void FmrbAudio::musicTask(void * arg)
           WaveformGenerator* wgen = audio->m_wavegen[i];
           if(instrument>=0){
             wgen->setFrequency(freq);
+            wgen->setVolume(127 * ch->m_volume / 100 );
             wgen->setDuration(ch->m_duration * wgen->sampleRate() * 90 / 100 / 1000 );
             wgen->enable(true);
           }else{ //Rest
             wgen->enable(false);
           }
         }else{
-          FMRB_DEBUG(FMRB_LOG::DEBUG, "[%d]no update\n",i);
+          uint32_t rduraion = ch->remain_duration();
+          if( rduraion > 0 && duration > rduraion) duration = rduraion;
+          FMRB_DEBUG(FMRB_LOG::DEBUG, "[%d]no update duration=%d\n",i,ch->remain_duration());
         }
       }
       FMRB_DEBUG(FMRB_LOG::DEBUG, "delay duration:%d\n",duration);
       if(duration<0xFFFFFFFF)
       {
-        vTaskDelay(duration);
+        if(duration>1) vTaskDelay(duration);
         play_pos += duration;
       }else{
         FMRB_DEBUG(FMRB_LOG::DEBUG, "============================\n");
