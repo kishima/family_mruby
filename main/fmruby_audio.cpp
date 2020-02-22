@@ -202,7 +202,7 @@ m_csr(0),
 m_mml_len(0),
 m_mml_str(nullptr)
 {
-
+  reset();
 }
 FmrbMmlChannel::~FmrbMmlChannel()
 {
@@ -238,10 +238,9 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
   const char* mml = m_mml_str;
 
   if (m_mml_len <= 0) return false;
-  //if (m_csr >= m_mml_len) reset();
 
   m_play_pos = play_pos;
-  FMRB_DEBUG(FMRB_LOG::DEBUG,"pos %lu - %lu\n",m_play_pos,m_next_play_pos);
+  //FMRB_DEBUG(FMRB_LOG::DEBUG,"pos %lu - %lu\n",m_play_pos,m_next_play_pos);
   if(play_pos < m_next_play_pos){
     return false;
   }
@@ -335,7 +334,7 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
       {
         m_duration = 1000 * 60 * 4 / m_def_slen / m_tempo; //ms
       }
-      FMRB_DEBUG(FMRB_LOG::DEBUG, "Rest duration:%d\n", m_duration);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG, "Rest duration:%d\n", m_duration);
       m_freq = 1;
       m_instrument = -1;
       m_next_play_pos = m_play_pos + m_duration;
@@ -370,7 +369,7 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
       m_csr++;
       int num_len = 0;
       int vol = read_num(mml + m_csr, &num_len);
-      FMRB_DEBUG(FMRB_LOG::DEBUG,"Volume vol:%d num_len:%d\n",vol,num_len);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG,"Volume vol:%d num_len:%d\n",vol,num_len);
       if (vol >= 0)
       {
         m_volume = vol;
@@ -392,14 +391,14 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
       cmd[1] = mml[m_csr + 1];
       cmd[2] = '\0';
       m_octave = octave_str_to_i(cmd);
-      FMRB_DEBUG(FMRB_LOG::DEBUG, "octave:%d\n", m_octave);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG, "octave:%d\n", m_octave);
       m_csr += 2;
     }
     else if (mml[m_csr] == '<')
     {
       m_csr++;
       m_octave++;
-      FMRB_DEBUG(FMRB_LOG::DEBUG, "octave+:%d\n", m_octave);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG, "octave+:%d\n", m_octave);
       if (m_octave > 8)
         m_octave = 8;
     }
@@ -407,7 +406,7 @@ bool FmrbMmlChannel::fetch(uint32_t play_pos)
     {
       m_csr++;
       m_octave--;
-      FMRB_DEBUG(FMRB_LOG::DEBUG, "octave-:%d\n", m_octave);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG, "octave-:%d\n", m_octave);
       if (m_octave < 0)
         m_octave = 0;
     }
@@ -495,7 +494,7 @@ void FmrbAudio::musicTask(void * arg)
     }
     if(2==audio->play_stat){
       duration = 0xFFFFFFFF;
-      FMRB_DEBUG(FMRB_LOG::DEBUG, ">>>>> play_pos:%d\n",play_pos);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG, ">>>>> play_pos:%d\n",play_pos);
       for(int i=0;i<FMRB_AUDIO_MAX_CHANNEL;i++){
         FmrbMmlChannel *ch = audio->m_mml_ch[i];
         bool update = ch->fetch(play_pos);
@@ -504,7 +503,7 @@ void FmrbAudio::musicTask(void * arg)
           int instrument = ch->m_instrument;
           if(duration > ch->m_duration) duration = ch->m_duration;
 
-          FMRB_DEBUG(FMRB_LOG::DEBUG, "[%d]freq:%d inst:%d duration:%lu ms\n",i, freq, ch->m_instrument,ch->m_duration);
+          //FMRB_DEBUG(FMRB_LOG::DEBUG, "[%d]freq:%d inst:%d duration:%lu ms\n",i, freq, ch->m_instrument,ch->m_duration);
           WaveformGenerator* wgen = audio->m_wavegen[i];
           if(instrument>=0){
             wgen->setFrequency(freq);
@@ -517,10 +516,10 @@ void FmrbAudio::musicTask(void * arg)
         }else{
           uint32_t rduraion = ch->remain_duration();
           if( rduraion > 0 && duration > rduraion) duration = rduraion;
-          FMRB_DEBUG(FMRB_LOG::DEBUG, "[%d]no update duration=%d\n",i,ch->remain_duration());
+          //FMRB_DEBUG(FMRB_LOG::DEBUG, "[%d]no update duration=%lu\n",i,rduraion);
         }
       }
-      FMRB_DEBUG(FMRB_LOG::DEBUG, "delay duration:%d\n",duration);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG, "delay duration:%d\n",duration);
       if(duration<0xFFFFFFFF)
       {
         if(duration>1) vTaskDelay(duration);
