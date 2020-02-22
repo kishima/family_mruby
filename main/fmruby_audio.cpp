@@ -120,7 +120,7 @@ static const int freq_scale[] = {
 /* 87 */	4186 	, //	C8
 };
 
-static int solfa_to_i(char* solfa)
+static int solfa_to_i(const char* solfa)
 {
   printf("cmp:%s\n",solfa);
   if(0==strcmp("C",solfa)){
@@ -161,7 +161,7 @@ static int solfa_to_i(char* solfa)
   return 0;
 }
 
-static int octave_str_to_i(char* oct){
+static int octave_str_to_i(const char* oct){
   if(oct[0]=='O'){
     int ret = atoi(&oct[1]);
     if(ret<0)ret=0;
@@ -177,7 +177,7 @@ static int octave_to_i(int oct){
   return -9+oct*12;
 }
 
-static int read_num(char* in,int* num_len){
+static int read_num(const char* in,int* num_len){
   int csr=0;
   char out[5];
   while(true){
@@ -197,20 +197,245 @@ static int read_num(char* in,int* num_len){
   return atoi(out);
 }
 
+FmrbMmlChannel::FmrbMmlChannel():
+m_csr(0),
+m_mml_len(0),
+m_mml_str(nullptr)
+{
 
+}
+FmrbMmlChannel::~FmrbMmlChannel()
+{
+  if(m_mml_str) fmrb_free(m_mml_str);
+}
+
+void FmrbMmlChannel::reset()
+{
+  m_csr = 0;
+  m_tempo = 120;
+  m_freq = 400;
+  m_instrument = 0;
+  m_duration = 1000*60/m_tempo; //ms
+  m_octave = octave_str_to_i("O4");
+  m_def_slen = 4;
+  m_play_pos = 0;
+  m_next_play_pos = 0;
+}
+void FmrbMmlChannel::load(const char* mml)
+{
+  if(m_mml_str){
+    fmrb_free(m_mml_str);
+  }
+  m_mml_len = strlen(mml);
+  m_mml_str = (char*)fmrb_spi_malloc(m_mml_len+1);
+  strcpy(m_mml_str,mml);
+
+  reset();
+}
+
+bool FmrbMmlChannel::fetch(uint32_t play_pos)
+{
+  const char* mml = m_mml_str;
+
+  if (m_mml_len <= 0) return false;
+  //if (m_csr >= m_mml_len) reset();
+
+  m_play_pos = play_pos;
+  FMRB_DEBUG(FMRB_LOG::DEBUG,"pos %lu - %lu\n",m_play_pos,m_next_play_pos);
+  if(play_pos < m_next_play_pos){
+    return false;
+  }
+  if(play_pos > m_next_play_pos){
+
+  }
+
+  char cmd[10];
+  //FMRB_DEBUG(FMRB_LOG::DEBUG,"%s\n",&mml[m_csr]);
+  bool update = false;
+  while (true)
+  {
+    if (m_csr >= m_mml_len)
+    {
+      m_freq = 1;
+      m_instrument = -1;
+      m_duration = 0xFFFFFFFF;
+      update = true;
+      break;
+    }
+    if (mml[m_csr] >= 'A' && mml[m_csr] <= 'G')
+    { //Solfa
+      cmd[0] = mml[m_csr];
+      if (mml[m_csr + 1] == '-' || mml[m_csr + 1] == '+')
+      {
+        cmd[1] = mml[m_csr + 1];
+        cmd[2] = '\0';
+        m_csr += 2;
+      }
+      else
+      {
+        cmd[1] = '\0';
+        m_csr += 1;
+      }
+      int i = solfa_to_i(cmd);
+      m_freq = freq_scale[octave_to_i(m_octave) + i];
+
+      int point = 0;
+      if (m_mml_str[m_csr] == '.')
+      {
+        point = 1;
+        m_csr++;
+      }
+
+      int num_len = 0;
+      int slen = read_num(mml + m_csr, &num_len);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG,"num:%d num_len:%d\n",slen,num_len);
+      if (slen > 0)
+      {
+        m_csr += num_len;
+        if (mml[m_csr] == '.')
+        {
+          point = 1;
+          m_csr++;
+        }
+        m_duration = 1000 * 60 * 4 / slen / m_tempo; //ms
+      }
+      else
+      {
+        m_duration = 1000 * 60 * 4 / m_def_slen / m_tempo; //ms
+      }
+      if (point)
+      {
+        m_duration = m_duration * 3 / 2;
+      }
+      m_instrument = 0;
+      m_next_play_pos = m_play_pos + m_duration;
+      update = true;
+      break;
+    }
+    else if (mml[m_csr] == 'R')
+    {
+      m_csr++;
+      int num_len = 0;
+      int slen = read_num(mml + m_csr, &num_len);
+      int point = 0;
+      //FMRB_DEBUG(FMRB_LOG::DEBUG,"Rest num:%d num_len:%d\n",slen,num_len);
+      if (slen > 0)
+      {
+        m_csr += num_len;
+        if (mml[m_csr] == '.')
+        {
+          point = 1;
+          m_csr++;
+        }
+        m_duration = 1000 * 60 * 4 / slen / m_tempo; //ms
+        if (point)
+        {
+          m_duration = m_duration * 3 / 2;
+        }
+      }
+      else
+      {
+        m_duration = 1000 * 60 * 4 / m_def_slen / m_tempo; //ms
+      }
+      FMRB_DEBUG(FMRB_LOG::DEBUG, "Rest duration:%d\n", m_duration);
+      m_freq = 1;
+      m_instrument = -1;
+      m_next_play_pos = m_play_pos + m_duration;
+      update = true;
+      break;
+    }
+    else if (mml[m_csr] == 'L')
+    {
+      m_csr++;
+      int num_len = 0;
+      int tmp = read_num(mml + m_csr, &num_len);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG,"Default Len num:%d num_len:%d\n",tmp,num_len);
+      if (tmp > 0)
+      {
+        m_csr += num_len;
+        m_def_slen = tmp;
+      }
+    }
+    else if (mml[m_csr] == 'T')
+    {
+      m_csr++;
+      int num_len = 0;
+      int tmp = read_num(mml + m_csr, &num_len);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG,"Tempo num:%d num_len:%d\n",tmp,num_len);
+      if (tmp > 0)
+      {
+        m_csr += num_len;
+        m_tempo = tmp;
+      }
+    }
+    else if (mml[m_csr] == 'V')
+    {
+      m_csr++;
+      int num_len = 0;
+      int vol = read_num(mml + m_csr, &num_len);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG,"Volume vol:%d num_len:%d\n",vol,num_len);
+      if (vol >= 0)
+      {
+        m_csr += num_len;
+      }
+    }
+    else if (mml[m_csr] == ' ')
+    {
+      m_csr++;
+    }
+    else if (mml[m_csr] == '&')
+    {
+      m_csr++;
+    }
+    else if (mml[m_csr] == 'O')
+    {
+      //Octave
+      cmd[0] = mml[m_csr];
+      cmd[1] = mml[m_csr + 1];
+      cmd[2] = '\0';
+      m_octave = octave_str_to_i(cmd);
+      FMRB_DEBUG(FMRB_LOG::DEBUG, "octave:%d\n", m_octave);
+      m_csr += 2;
+    }
+    else if (mml[m_csr] == '<')
+    {
+      m_csr++;
+      m_octave++;
+      FMRB_DEBUG(FMRB_LOG::DEBUG, "octave+:%d\n", m_octave);
+      if (m_octave > 8)
+        m_octave = 8;
+    }
+    else if (mml[m_csr] == '>')
+    {
+      m_csr++;
+      m_octave--;
+      FMRB_DEBUG(FMRB_LOG::DEBUG, "octave-:%d\n", m_octave);
+      if (m_octave < 0)
+        m_octave = 0;
+    }
+  }
+  return update;
+}
+
+/**
+ * FmrbAudio
+ **/
 FmrbAudio::FmrbAudio():
 play_stat(0),
-m_mml_str(nullptr)
+m_volume(128/2)
 {
   fmrb_dump_mem_stat(1);
   m_generator = new SoundGenerator(DEFAULT_SAMPLE_RATE);
 
-  m_wavegen = new SquareWaveformGenerator();
-  m_wavegen->enable(false);
-  m_wavegen->setSampleRate(DEFAULT_SAMPLE_RATE);
-  m_wavegen->setFrequency(500);
-  m_wavegen->setVolume(100);
-  m_generator->attach(m_wavegen);
+  for(int i=0;i<FMRB_AUDIO_MAX_CHANNEL;i++){
+    m_mml_ch[i] = new FmrbMmlChannel();
+    m_wavegen[i] = new SquareWaveformGenerator();
+    m_wavegen[i]->enable(false);
+    m_wavegen[i]->setSampleRate(DEFAULT_SAMPLE_RATE);
+    m_wavegen[i]->setFrequency(500);
+    m_wavegen[i]->setVolume(100);
+    m_generator->attach(m_wavegen[i]);
+  }
 
   xTaskCreate(musicTask, "music", FMRB_MUSIC_TASK_STACK_SIZE, this, FMRB_MUSIC_TASK_PRIORITY, &m_musicTaskHandle);
   fmrb_dump_mem_stat(2);
@@ -218,17 +443,21 @@ m_mml_str(nullptr)
 
 FmrbAudio::~FmrbAudio()
 {
+  printf("delete FmrbAudio\n");
   vTaskDelete(m_musicTaskHandle);
+  vTaskDelay(100);
 
-  if(m_wavegen){
-    m_generator->detach(m_wavegen);
-    delete(m_wavegen);
+  for(int i=0;i<FMRB_AUDIO_MAX_CHANNEL;i++){
+    if(m_wavegen[i]){
+      m_generator->detach(m_wavegen[i]);
+      delete(m_wavegen[i]);
+    }
+    if(m_mml_ch[i]){
+      delete m_mml_ch[i];
+    }
   }
   if(m_generator){
     delete(m_generator);
-  }
-  if(m_mml_str){
-    fmrb_free(m_mml_str);
   }
 
 }
@@ -239,171 +468,92 @@ void FmrbAudio::musicTask(void * arg)
 {
   FmrbAudio* audio = (FmrbAudio*)arg;
   FMRB_DEBUG(FMRB_LOG::INFO,"musicTask begin\n");
-  int csr = 0;
-  int len = 0;
-  int tempo = 120;
-  int duration = 1000*60/tempo; //ms
-  int octave = octave_str_to_i("O4");
-  //int octave_int = octave_to_i(octave);
-  int def_slen = 4;
+  uint32_t play_pos = 0;
+  uint32_t duration = 0;
+
   while(true){
     if(0==audio->play_stat){
-      vTaskDelay(100);
+      vTaskDelay(30);
       continue;
-    } 
+    }
     if(1==audio->play_stat){
       FMRB_DEBUG(FMRB_LOG::INFO,"musicTask play start\n");
       audio->m_generator->play(true);
-      audio->m_generator->setVolume(60);
+      audio->m_generator->setVolume(audio->m_volume);
       audio->play_stat = 2;
-      len = strlen(audio->m_mml_str);
-      FMRB_DEBUG(FMRB_LOG::DEBUG,"mml:%s\n",audio->m_mml_str);
-      vTaskDelay(100);
+      //len = strlen(audio->m_mml_str);
+      //FMRB_DEBUG(FMRB_LOG::DEBUG,"mml:%s\n",audio->m_mml_str);
+      //vTaskDelay(100);
     }
     if(2==audio->play_stat){
-      if(len<=0)continue;
-      if(csr>=len)csr=0;
-      char cmd[10];
-      char* mml = audio->m_mml_str;
-      //FMRB_DEBUG(FMRB_LOG::DEBUG,"%s\n",&mml[csr]);
+      duration = 0xFFFFFFFF;
+      FMRB_DEBUG(FMRB_LOG::DEBUG, ">>>>> play_pos:%d\n",play_pos);
+      for(int i=0;i<FMRB_AUDIO_MAX_CHANNEL;i++){
+        FmrbMmlChannel *ch = audio->m_mml_ch[i];
+        bool update = ch->fetch(play_pos);
+        if(update){
+          int freq = ch->m_freq;
+          int instrument = ch->m_instrument;
+          if(duration > ch->m_duration) duration = ch->m_duration;
 
-      if( mml[csr] >= 'A' && mml[csr] <='G'){ //Solfa
-        cmd[0]=mml[csr];
-        if(mml[csr+1]=='-' || mml[csr+1]=='+'){
-          cmd[1]=mml[csr+1];
-          cmd[2]='\0';
-          csr += 2;
-        }else{
-          cmd[1]='\0';
-          csr += 1;
-        }
-        int i = solfa_to_i(cmd);
-        int freq = freq_scale[octave_to_i(octave)+i];
-
-        int point=0;
-        if(mml[csr]=='.'){
-          point=1;
-          csr++;
-        }
-
-        int num_len = 0;
-        int slen = read_num(mml+csr,&num_len);
-        //FMRB_DEBUG(FMRB_LOG::DEBUG,"num:%d num_len:%d\n",slen,num_len);
-        if(slen>0){
-          csr+=num_len;
-          if(mml[csr]=='.'){
-            point=1;
-            csr++;
-          }
-          duration = 1000*60*4/slen/tempo; //ms
-        }else{
-          duration = 1000*60*4/def_slen/tempo; //ms
-        }
-        if(point){
-          duration = duration * 3 / 2;
-        }
-        FMRB_DEBUG(FMRB_LOG::DEBUG,"freq:%d solfa:%d duration:%d oct:%d\n",freq,i,duration,octave);
-        audio->m_wavegen->setFrequency(freq);
-        audio->m_wavegen->enable(true);
-        vTaskDelay(duration);
-      }else if( mml[csr] == 'R' ){
-        csr++;
-        int num_len = 0;
-        int slen = read_num(mml+csr,&num_len);
-        int point=0;
-        //FMRB_DEBUG(FMRB_LOG::DEBUG,"Rest num:%d num_len:%d\n",slen,num_len);
-        if(slen>0){
-          csr+=num_len;
-          if(mml[csr]=='.'){
-            point=1;
-            csr++;
-          }
-          duration = 1000*60*4/slen/tempo; //ms
-          if(point){
-            duration = duration * 3 / 2;
+          FMRB_DEBUG(FMRB_LOG::DEBUG, "[%d]freq:%d inst:%d duration:%lu ms\n",i, freq, ch->m_instrument,ch->m_duration);
+          WaveformGenerator* wgen = audio->m_wavegen[i];
+          if(instrument>=0){
+            wgen->setFrequency(freq);
+            wgen->setDuration(ch->m_duration * wgen->sampleRate() * 90 / 100 / 1000 );
+            wgen->enable(true);
+          }else{ //Rest
+            wgen->enable(false);
           }
         }else{
-          duration = 1000*60*4/def_slen/tempo; //ms
+          FMRB_DEBUG(FMRB_LOG::DEBUG, "[%d]no update\n",i);
         }
-        FMRB_DEBUG(FMRB_LOG::DEBUG,"Rest duration:%d\n",duration);
-        audio->m_wavegen->enable(false);
-        vTaskDelay(duration);
-      }else if( mml[csr] == 'L' ){
-        csr++;
-        int num_len = 0;
-        int tmp = read_num(mml+csr,&num_len);
-        //FMRB_DEBUG(FMRB_LOG::DEBUG,"Default Len num:%d num_len:%d\n",tmp,num_len);
-        if(tmp>0){
-          csr+=num_len;
-          def_slen=tmp;
-        }
-      }else if( mml[csr] == 'T' ){
-        csr++;
-        int num_len = 0;
-        int tmp = read_num(mml+csr,&num_len);
-        //FMRB_DEBUG(FMRB_LOG::DEBUG,"Tempo num:%d num_len:%d\n",tmp,num_len);
-        if(tmp>0){
-          csr+=num_len;
-          tempo = tmp;
-        }
-      }else if( mml[csr] == 'V' ){
-        csr++;
-        int num_len = 0;
-        int vol = read_num(mml+csr,&num_len);
-        //FMRB_DEBUG(FMRB_LOG::DEBUG,"Volume vol:%d num_len:%d\n",vol,num_len);
-        if(vol>=0){
-          csr+=num_len;
-        }
-      }else if( mml[csr] == ' ' ){
-        csr++;
-      }else if( mml[csr] == '&' ){
-        csr++;
-      }else if( mml[csr] == 'O' ){
-         //Octave
-        cmd[0]=mml[csr];
-        cmd[1]=mml[csr+1];
-        cmd[2]='\0';
-        octave = octave_str_to_i(cmd);
-        FMRB_DEBUG(FMRB_LOG::DEBUG,"octave:%d\n",octave);
-        csr += 2;
-      }else if( mml[csr] == '<' ){
-        csr++;
-        octave++;
-        FMRB_DEBUG(FMRB_LOG::DEBUG,"octave+:%d\n",octave);
-        if(octave>8)octave=8;
-      }else if( mml[csr] == '>' ){
-        csr++;
-        octave--;
-        FMRB_DEBUG(FMRB_LOG::DEBUG,"octave-:%d\n",octave);
-        if(octave<0)octave=0;
-      }else{
-        vTaskDelay(10);
       }
-
-    }
-
+      FMRB_DEBUG(FMRB_LOG::DEBUG, "delay duration:%d\n",duration);
+      if(duration<0xFFFFFFFF)
+      {
+        vTaskDelay(duration);
+        play_pos += duration;
+      }else{
+        FMRB_DEBUG(FMRB_LOG::DEBUG, "============================\n");
+        FMRB_DEBUG(FMRB_LOG::DEBUG, "rest play > repeat\n");
+        for(int i=0;i<FMRB_AUDIO_MAX_CHANNEL;i++){
+          audio->m_mml_ch[i]->reset();
+        }
+        play_pos = 0;
+        //vTaskDelay(30);
+      }
+    } 
   }
 }
 
 
-void FmrbAudio::load_mml(const char* mml)
+void FmrbAudio::load_mml(int ch,const char* mml)
 {
-  if(m_mml_str){
-    fmrb_free(m_mml_str);
-  }
-  m_mml_str = (char*)fmrb_spi_malloc(strlen(mml)+1);
-  strcpy(m_mml_str,mml);
+  FMRB_DEBUG(FMRB_LOG::DEBUG,"ch:%d mml:%s\n",ch,mml);
+  m_mml_ch[ch]->load(mml);
 }
 
-void FmrbAudio::play_mml()
+void FmrbAudio::play_mml(int ch,bool loop)
 {
   play_stat = 1;
 }
 
-void FmrbAudio::stop()
+void FmrbAudio::play_all(bool loop)
+{
+  play_stat = 1;
+}
+
+void FmrbAudio::stop_all()
 {
   play_stat = 0;
   m_generator->play(false);
 }
 
 
+void FmrbAudio::set_volume(int vol)
+{
+  if(vol<0)vol=0;
+  if(vol>127)vol=127;
+  m_volume = vol;
+}

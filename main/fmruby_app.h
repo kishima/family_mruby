@@ -232,22 +232,57 @@ private:
 /**
  * FmrbAudio
  **/
+class FmrbMmlChannel{
+public:
+  int m_freq;
+  int m_instrument;
+  uint32_t m_duration;
 
+  OVERLOAD_SPI_ALLOCATOR
+  FmrbMmlChannel();
+  ~FmrbMmlChannel();
+  void load(const char* mml);
+  bool fetch(uint32_t play_pos);
+  void reset();
+private:
+  int m_csr;
+  int m_mml_len;
+  char* m_mml_str;
+
+  int m_tempo;
+  int m_octave;
+  int m_def_slen;
+
+  uint32_t m_play_pos;
+  uint32_t m_next_play_pos;
+
+};
+
+#define FMRB_AUDIO_MAX_CHANNEL (4)
 class FmrbAudio{
 public:
   SoundGenerator* m_generator;
-  WaveformGenerator* m_wavegen;
+  WaveformGenerator* m_wavegen[FMRB_AUDIO_MAX_CHANNEL];
   volatile int play_stat;
+  int m_volume;
+  FmrbMmlChannel* m_mml_ch[FMRB_AUDIO_MAX_CHANNEL];
 
   OVERLOAD_SPI_ALLOCATOR
   FmrbAudio();
   ~FmrbAudio();
-  void load_mml(const char*);
-  void play_mml();
-  void stop();
+  void load_mml(int ch,const char* mml);
+  void play_mml(int ch,bool loop);
+  void play_all(bool loop);
+  void load_wave(char* ptr,size_t size);
+  void play_wave(bool loop);
+  void stop_all();
+  void stop_mml(int ch);
+  void stop_wave();
+  void set_volume(int vol);
 
 private:
-  char* m_mml_str;
+  char* m_wave_data;
+  size_t m_wave_size;
   TaskHandle_t m_musicTaskHandle;
 
   static void musicTask(void * arg);
